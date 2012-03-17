@@ -21,9 +21,14 @@ THREE.DragControls = function(_camera, _objects, _domElement) {
         _offset = new THREE.Vector3();
     var _selected;
 
+    var p3subp1 = new THREE.Vector3();
+    var targetposition = new THREE.Vector3();
+    var zerovector = new THREE.Vector3();
+
     _domElement.addEventListener('mousemove', onDocumentMouseMove, false);
     _domElement.addEventListener('mousedown', onDocumentMouseDown, false);
     _domElement.addEventListener('mouseup', onDocumentMouseUp, false);
+
 
     function onDocumentMouseMove(event) {
 
@@ -32,12 +37,28 @@ THREE.DragControls = function(_camera, _objects, _domElement) {
         _mouse.x = (event.clientX / _domElement.width) * 2 - 1;
         _mouse.y = -(event.clientY / _domElement.height) * 2 + 1;
 
+
         var ray = _projector.pickingRay(_mouse, _camera);
 
         if (_selected) {
-            var targetPos = ray.direction.clone().multiplyScalar(_selected.distance).addSelf(ray.origin);
-            _selected.object.position.copy(targetPos.subSelf(_offset));
+            var normal = _selected.normal;
 
+            // I found this article useful about plane-line intersections
+            // http://paulbourke.net/geometry/planeline/
+
+            var denom = normal.dot(ray.direction);
+            if (denom == 0) {
+                // bail
+                console.log('no or infinite solutions');
+                return;
+            }
+
+            var num = normal.dot(p3subp1.copy(_selected.point).subSelf(ray.origin));
+            var u = num / denom;
+
+            targetposition.copy(ray.direction).multiplyScalar(u).addSelf(ray.origin).subSelf(_offset);
+            _selected.object.position.copy(targetposition);
+            
             return;
 
         }
@@ -65,10 +86,11 @@ THREE.DragControls = function(_camera, _objects, _domElement) {
 
         var ray = _projector.pickingRay(_mouse, _camera);
         var intersects = ray.intersectObjects(_objects);
-
+        var normal = _projector.pickingRay(zerovector, _camera).direction; // normal ray to the camera position
         if (intersects.length > 0) {
             _selected = intersects[0];
-
+            _selected.ray = ray;
+            _selected.normal = normal ;
             _offset.copy(_selected.point).subSelf(_selected.object.position);
 
             _domElement.style.cursor = 'move';
