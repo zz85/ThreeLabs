@@ -1,5 +1,5 @@
 /*
- * Running this will allow you to drag three.js around the screen.
+ * Running this will allow you to drag three.js objects around the screen.
  * 
  * feature requests:
  *  1. add rotation?
@@ -25,10 +25,20 @@ THREE.DragControls = function(_camera, _objects, _domElement) {
     var targetposition = new THREE.Vector3();
     var zerovector = new THREE.Vector3();
 
-    _domElement.addEventListener('mousemove', onDocumentMouseMove, false);
-    _domElement.addEventListener('mousedown', onDocumentMouseDown, false);
-    _domElement.addEventListener('mouseup', onDocumentMouseUp, false);
 
+    this.activate = function() {
+        _domElement.addEventListener('mousemove', onDocumentMouseMove, false);
+        _domElement.addEventListener('mousedown', onDocumentMouseDown, false);
+        _domElement.addEventListener('mouseup', onDocumentMouseUp, false);
+    };
+
+    this.deactivate = function() {
+        _domElement.removeEventListener('mousemove', onDocumentMouseMove, false);
+        _domElement.removeEventListener('mousedown', onDocumentMouseDown, false);
+        _domElement.removeEventListener('mouseup', onDocumentMouseUp, false);
+    };
+
+    this.activate();
 
     function onDocumentMouseMove(event) {
 
