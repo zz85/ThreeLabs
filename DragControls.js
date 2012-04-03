@@ -12,9 +12,7 @@
  */
 THREE.DragControls = function(_camera, _objects, _domElement) {
 
-    if (_objects instanceof THREE.Scene) {
-        _objects = _objects.children;
-    }
+
     var _projector = new THREE.Projector();
 
     var _mouse = new THREE.Vector3(),
@@ -25,6 +23,15 @@ THREE.DragControls = function(_camera, _objects, _domElement) {
     var targetposition = new THREE.Vector3();
     var zerovector = new THREE.Vector3();
 
+    this.setObjects = function(objects) {
+        if (objects instanceof THREE.Scene) {
+            _objects = objects.children;
+        } else {
+            _objects = objects;
+        }
+    };
+
+    this.setObjects(_objects);
 
     this.activate = function() {
         _domElement.addEventListener('mousemove', onDocumentMouseMove, false);
@@ -69,6 +76,24 @@ THREE.DragControls = function(_camera, _objects, _domElement) {
             targetposition.copy(ray.direction).multiplyScalar(u).addSelf(ray.origin).subSelf(_offset);
             _selected.object.position.copy(targetposition);
             
+             //   _selected.object.position.y = targetposition.y;
+            //    _selected.object.position.z = targetposition.z;
+
+            // case 'x':
+            //     _SELECTED.position.y = _plane.position.y;
+            //     _SELECTED.position.z = _plane.position.z;
+            //     break;
+
+            // case 'y':
+            //     _SELECTED.position.x = _plane.position.x;
+            //     _SELECTED.position.z = _plane.position.z;
+            //     break;
+
+            // case 'z':
+            //     _SELECTED.position.x = _plane.position.x;
+            //     _SELECTED.position.y = _plane.position.y;
+            //     break;
+
             return;
 
         }
