@@ -74,26 +74,30 @@ THREE.DragControls = function(_camera, _objects, _domElement) {
             var u = num / denom;
 
             targetposition.copy(ray.direction).multiplyScalar(u).addSelf(ray.origin).subSelf(_offset);
-            _selected.object.position.copy(targetposition);
+            // _selected.object.position.copy(targetposition);
+
+            var xLock, yLock, zLock = false;
+
+            var moveX, moveY, moveZ;
             
-             //   _selected.object.position.y = targetposition.y;
-            //    _selected.object.position.z = targetposition.z;
 
-            // case 'x':
-            //     _SELECTED.position.y = _plane.position.y;
-            //     _SELECTED.position.z = _plane.position.z;
-            //     break;
+            if (xLock) {
+                moveX = true;
+                moveY = false;
+                moveZ = false;
+            } else if (yLock) {
+                moveX = false;
+                moveY = true;
+                moveZ = false;
+            } else {
+                moveX = moveY = moveZ = false;
+            }
 
-            // case 'y':
-            //     _SELECTED.position.x = _plane.position.x;
-            //     _SELECTED.position.z = _plane.position.z;
-            //     break;
-
-            // case 'z':
-            //     _SELECTED.position.x = _plane.position.x;
-            //     _SELECTED.position.y = _plane.position.y;
-            //     break;
-
+            // Reverse Matrix?
+            if (moveX) _selected.object.position.x = targetposition.x;
+            if (moveY) _selected.object.position.y = targetposition.y;
+            if (moveZ) _selected.object.position.z = targetposition.z;
+            
             return;
 
         }
