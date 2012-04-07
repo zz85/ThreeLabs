@@ -10,7 +10,7 @@
  * @author zz85 from https://github.com/zz85
  * follow on http://twitter.com/blurspline
  */
-THREE.DragControls = function(_camera, _objects, _domElement) {
+THREE.DragControlsByPlane = function(_camera, _objects, _domElement) {
 
 
     var _projector = new THREE.Projector();
