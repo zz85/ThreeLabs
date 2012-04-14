@@ -27,16 +27,19 @@
 // 4. plane and shadows + axis helpers
 // 5. Simple Export + Primitive import
 // 6. Increase / Decrease Points
+// 7. Better, Simplier Import / Export
+
 
 // Future Enhancements?
 // 
 // Insert / Remove Points midway
-// Simplier Import / Export (URL hash maybe??)
+// Export (URL hash maybe??)
 // Animate object / camera along path 
 // Integrate TubeGeometry / 2D Shape / Spline Editor 
 // Modify Trackball Controls for finer controls (eg. orthognal views)
 // Re-use UI for Vertex Editor
 // Integrate Animation Director
+// Support Bezier Curves?
 
 String.prototype.format = function() {
     var str = this;
@@ -69,6 +72,7 @@ var camera, scene, renderer;
 var splineObjects = [], splineOutline;
 var splineCurve,  splinePointsLength = 4;
 var positions = [];
+var i;
 
 var options; // div
 
@@ -85,10 +89,6 @@ function addSplineObject(position) {
 
     if (position) {
         object.position = position;
-    } else {
-        object.position.x = Math.random() * 1000 - 500;
-        object.position.y = Math.random() * 600 - 300;
-        object.position.z = Math.random() * 800 - 400;
     }
 
     object.castShadow = true;
@@ -101,8 +101,6 @@ function addSplineObject(position) {
     return object;
 }
 
-// Uncomment this line if you wish to load from exports
-// load();
 
 init();
 animate();
@@ -176,27 +174,6 @@ function init() {
     axis.position.set(-500, -500, -500);
     scene.add(axis);
 
-
-
-    var i;
-
-    for (i = 0; i < splinePointsLength; i++) {
-
-        addSplineObject(positions[i]);
-
-    }
-
-
-    // Positions
-    positions= [];
-    for (i = 0; i < splinePointsLength; i++) {
-        positions.push(splineObjects[i].position);
-    }
-    
-    splineCurve = new THREE.SplineCurve3(positions);
-
-    updateSplineOutline();
-
     renderer = new THREE.WebGLRenderer({
         antialias: true
     });
@@ -221,7 +198,7 @@ function init() {
     options.style.top = '30px';
     options.style.width = '100%';
     options.style.textAlign = 'center';
-    options.innerHTML = 'Points: <input type="button" onclick="points(1);" value="+" /><input type="button" onclick="points(-1);" value="-" /><br /><input type="button" onclick="exportSpline();" value="Export" />';
+    options.innerHTML = '<div id="info2"></div>Points: <input type="button" onclick="points(1);" value="+" /><input type="button" onclick="points(-1);" value="-" /><br /><input type="button" onclick="exportAction();" value="Export" /><input type="button" onclick="importAction();" value="Import" /><input type="button" onclick="exportToCode();" value="Export to Code" />';
    
 
     container.appendChild(info);
@@ -245,6 +222,10 @@ function init() {
     }
 
     dragcontrols.onDragged = updateSplineOutline;
+
+
+    // Uncomment this line if you wish to load from exports
+    load();
 
 }
 
@@ -278,6 +259,8 @@ function points(offset) {
 
 function updateSplineOutline() {
 
+    document.getElementById('info2').innerHTML = splinePointsLength + ' points';
+
     if (splineOutline) scene.remove( splineOutline );
 
     splineCurve.updateArcLengths();
@@ -293,7 +276,19 @@ function updateSplineOutline() {
     scene.add( splineOutline );
 }
 
-function exportSpline() {
+function exportAction() {
+    prompt('code', exportSpline2());
+}
+
+function importAction() {
+    var code = prompt("enter code");
+    if (code) {
+        importSpline(code);
+        load();
+    }
+}
+
+function exportToCode() {
     var p;
     var strplace = [];
     for (i = 0; i < splinePointsLength; i++) {
@@ -306,9 +301,51 @@ function exportSpline() {
     prompt('copy and paste code', code);
 }
 
+function importSpline(s) {
+    var points = s.split(',');
 
-function load() {
-    
+    positions = [];
+    for (i=0;i<points.length;i++) {
+        points[i] = parseFloat(points[i], 3);
+    }
+
+    for (i=0;i+2<points.length;i+=3) {
+        // console.log(i);
+        positions.push(new THREE.Vector3(points[i], points[i+1], points[i+2]));
+    }
+
+    return positions;
+}
+
+function exportSpline() {
+
+    var allpoints = [], p;
+    for (i = 0; i < splinePointsLength; i++) {
+        p = splineObjects[i].position;
+        allpoints.push(p.x.toFixed(3));
+        allpoints.push(p.y.toFixed(3));
+        allpoints.push(p.z.toFixed(3));
+    }
+
+    return allpoints.join(',');
+
+}
+
+function importRandom() {
+
+    positions = [];
+     for (i=0;i<4;i++) {
+        positions.push(
+            new THREE.Vector3(
+                Math.random() * 1000 - 500,
+                Math.random() * 600 - 300,
+                Math.random() * 800 - 400
+            )
+        );
+    }
+}
+
+function importTest() {
     positions = [
         new THREE.Vector3(-213.12552068360054, -294.1922074745087, -0.03978996232257259),
         new THREE.Vector3(29.99553601021495, -243.11318001675306, 280.78482599069616),
@@ -322,7 +359,35 @@ function load() {
         new THREE.Vector3(163.10498799765227, -369.03871116931487, -173.83095096616034) 
     ];
 
+}
+
+
+function load() {
+    
+    if (positions.length <4) {
+        importRandom();
+    }
+
     splinePointsLength = positions.length;
+
+    // Remove spline objects if any
+
+    while (splineObjects.length) {
+
+        scene.remove(splineObjects.pop());
+    }
+
+    // Add spline helper objects
+
+    for (i = 0; i < splinePointsLength; i++) {
+
+        addSplineObject(positions[i]);
+
+    }
+    
+    splineCurve = new THREE.SplineCurve3(positions);
+
+    updateSplineOutline();
 
 }
 
