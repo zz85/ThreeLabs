@@ -118,7 +118,7 @@ THREE.DragControls = function(_camera, _objects, _domElement) {
             if (moveX) _selected.object.position.x = targetPos.x;
             if (moveY) _selected.object.position.y = targetPos.y;
             if (moveZ) _selected.object.position.z = targetPos.z;
-
+            notify('drag', _selected);
             return;
 
         }
@@ -157,6 +157,8 @@ THREE.DragControls = function(_camera, _objects, _domElement) {
             _domElement.style.cursor = 'move';
 
             _selected.hit = hit;
+
+            notify('dragstart', _selected);
             notify('mousedown', _selected);
         } else {
             notify('mousedown', { hit: hit });
@@ -171,7 +173,7 @@ THREE.DragControls = function(_camera, _objects, _domElement) {
         var dragged = false;
         if (_selected) {
             dragged = true;
-            notify('dragged', _selected);
+            notify('dragend', _selected);
 
             _selected = null;
         }
