@@ -36,29 +36,31 @@ THREE.DragControls = function(_camera, _objects, _domElement) {
     this.enabled = true; 
 
     /* Custom Event Handling */
-    var listeners = {
+    var _listeners = {
 
     };
 
     this.on = function(event, handler) {
-        if (!listeners[event]) listeners[event] = [];
+        if (!_listeners[event]) _listeners[event] = [];
 
-        listeners[event].push(handler);
-
+        _listeners[event].push(handler);
+        return me;
     };
 
     this.off = function(event, handler) {
-        var l = listeners[event];
-        if (!l) return;
+        var l = _listeners[event];
+        if (!l) return me;
 
         if (l.indexOf(handler)>-1) {
             l.splice(handler, 1);
         }
 
+        return me;
+
     };
 
     var notify = function(event, data, member) {
-        var l = listeners[event];
+        var l = _listeners[event];
         if (!l) return;
 
         if (!member) {
@@ -68,6 +70,33 @@ THREE.DragControls = function(_camera, _objects, _domElement) {
         }
     };
 
+
+    // Drag constrains (eg. move along x-axis only, y only, x and y, or default xyz)
+    var moveX, moveY, moveZ;
+    moveX = moveY = moveZ = true;
+
+    this.constrains = function(xyz) {
+
+        if (xyz === undefined) 
+            xyz = 'xyz'; 
+
+        moveX = moveY = moveZ = false;
+
+        if (xyz.indexOf('x') > -1) {
+            moveX = true;
+        } 
+
+        if (xyz.indexOf('y') > -1) {
+            moveY = true;
+        } 
+
+        if (xyz.indexOf('z') > -1) {
+            moveZ = true;
+        } 
+
+        return this;
+
+    };
 
 
     function onDocumentMouseMove(event) {
@@ -84,19 +113,8 @@ THREE.DragControls = function(_camera, _objects, _domElement) {
             targetPos.subSelf(_offset);
             // _selected.object.position.copy(targetPos.subSelf(_offset));
 
-            var moveX, moveY, moveZ;
-
-            moveX = moveY = moveZ = true;
-
-            if (me.xLock) {
-                moveX = false;
-            } else if (me.yLock) {
-                moveY = false;
-            } else if (me.zLock) {
-                moveZ = false;
-            }
-
             // Reverse Matrix?
+            // Hmm, quick hack - should do some kind of planar projection..
             if (moveX) _selected.object.position.x = targetPos.x;
             if (moveY) _selected.object.position.y = targetPos.y;
             if (moveZ) _selected.object.position.z = targetPos.z;
