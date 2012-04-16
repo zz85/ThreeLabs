@@ -27,8 +27,10 @@ THREE.ASCIIRenderer = function() {
 
 	
 	var charSet = ' .:-=+*#%@';
+	
+	// ' .,:;=|iI+hHOE#`$'; // Adrian Milliner
 	// darker bolder character set from https://github.com/saw/Canvas-ASCII-Art/
-	//' .\'`^",:;Il!i~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$'.split('');
+	// ' .\'`^",:;Il!i~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$'.split('');
 
 	var canvasRenderer = new THREE.CanvasRenderer();
 	var width, height;
@@ -175,7 +177,11 @@ THREE.ASCIIRenderer = function() {
 		var oImgData = oCtx.getImageData(0, 0, iWidth, iHeight).data;
 
 		// Coloring loop starts now
-		var strChars = "";
+		var strChars = [];
+
+		console.time('rendering');
+
+		strChars.push("<tr><td>");
 
 		for (var y=0;y<iHeight;y+=2) {
 			for (var x=0;x<iWidth;x++) {
@@ -215,20 +221,26 @@ THREE.ASCIIRenderer = function() {
 					strThisChar = "&nbsp;";
 			  
 				if (bColor) {
-					strChars += "<span style='"
-						+ "color:rgb("+iRed+","+iGreen+","+iBlue+");"
-						+ (bBlock ? "background-color:rgb("+iRed+","+iGreen+","+iBlue+");" : "")
-						+ (bAlpha ? "opacity:" + (iAlpha/255) + ";" : "")
-						+ "'>" + strThisChar + "</span>";
+					strChars.push( "<span style='" );
+					strChars.push("color:rgb(" + iRed + "," + iGreen + "," + iBlue + ");" );
+					strChars.push( (bBlock ? "background-color:rgb("+iRed+","+iGreen+","+iBlue+");" : "") );
+					strChars.push( (bAlpha ? "opacity:" + (iAlpha/255) + ";" : "") );
+					strChars.push(  "'>" + strThisChar + "</span>");
 				} else {
-					strChars += strThisChar;
+
+					strChars.push(strThisChar);
 				}
 			}
-			strChars += "<br/>";
+
+			strChars.push("<br/>");
 		}
 	
 
-		oAscii.innerHTML = "<tr><td>" + strChars + "</td></tr>";
+		strChars.push ("</td></tr>");
+
+		oAscii.innerHTML = strChars.join('');;
+
+		console.timeEnd('rendering');
 		
 		// return oAscii;
 	}
