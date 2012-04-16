@@ -28,7 +28,7 @@ THREE.ASCIIRenderer = function() {
 	
 	var charSet = ' .:-=+*#%@';
 	
-	// ' .,:;=|iI+hHOE#`$'; // Adrian Milliner
+	// ' .,:;=|iI+hHOE#`$'; 
 	// darker bolder character set from https://github.com/saw/Canvas-ASCII-Art/
 	// ' .\'`^",:;Il!i~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$'.split('');
 
@@ -177,11 +177,9 @@ THREE.ASCIIRenderer = function() {
 		var oImgData = oCtx.getImageData(0, 0, iWidth, iHeight).data;
 
 		// Coloring loop starts now
-		var strChars = [];
+		var strChars = "";
 
 		console.time('rendering');
-
-		strChars.push("<tr><td>");
 
 		for (var y=0;y<iHeight;y+=2) {
 			for (var x=0;x<iWidth;x++) {
@@ -221,24 +219,21 @@ THREE.ASCIIRenderer = function() {
 					strThisChar = "&nbsp;";
 			  
 				if (bColor) {
-					strChars.push( "<span style='" );
-					strChars.push("color:rgb(" + iRed + "," + iGreen + "," + iBlue + ");" );
-					strChars.push( (bBlock ? "background-color:rgb("+iRed+","+iGreen+","+iBlue+");" : "") );
-					strChars.push( (bAlpha ? "opacity:" + (iAlpha/255) + ";" : "") );
-					strChars.push(  "'>" + strThisChar + "</span>");
+					strChars += "<span style='"
+						+ "color:rgb("+iRed+","+iGreen+","+iBlue+");"
+						+ (bBlock ? "background-color:rgb("+iRed+","+iGreen+","+iBlue+");" : "")
+						+ (bAlpha ? "opacity:" + (iAlpha/255) + ";" : "")
+						+ "'>" + strThisChar + "</span>";
 				} else {
-
-					strChars.push(strThisChar);
+					strChars += strThisChar;
 				}
 			}
-
-			strChars.push("<br/>");
+			strChars += "<br/>";
 		}
 	
 
-		strChars.push ("</td></tr>");
 
-		oAscii.innerHTML = strChars.join('');;
+		oAscii.innerHTML = "<tr><td>" + strChars + "</td></tr>";
 
 		console.timeEnd('rendering');
 		
