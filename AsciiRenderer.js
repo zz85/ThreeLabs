@@ -10,11 +10,13 @@
  * 'cause it looked the most hackable :)
  * okay, ended up i took more than 15 minutes, because most of the time turned into debugging 
  * and squashing some bugs.
+ *
+ * Usage: Just replace your CanvasRenderer / WebGLRenderer with AsciiRenderer. The rest is magic.
  * 
  * 16 April 2012 - @blurspline
  */
   
-THREE.ASCIIRenderer = function() {
+THREE.ASCIIRenderer = function( renderer ) {
 
 	// Some ASCII settings
 	var bResolution = 0.15;
@@ -26,13 +28,14 @@ THREE.ASCIIRenderer = function() {
 	var strResolution = 'low';
 
 	
-	var charSet = ' .:-=+*#%@';
+	var charSet = ' .:-=+*#%@'; // set to null for defaults.
 	
 	// ' .,:;=|iI+hHOE#`$'; 
 	// darker bolder character set from https://github.com/saw/Canvas-ASCII-Art/
 	// ' .\'`^",:;Il!i~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$'.split('');
 
-	var canvasRenderer = new THREE.CanvasRenderer();
+	renderer = (renderer === undefined) ? THREE.CanvasRenderer : renderer; //THREE.WebGLRenderer 
+	var canvasRenderer = new renderer();
 	var width, height;
 
 	var domElement = document.createElement('div');
@@ -179,7 +182,7 @@ THREE.ASCIIRenderer = function() {
 		// Coloring loop starts now
 		var strChars = "";
 
-		console.time('rendering');
+		// console.time('rendering');
 
 		for (var y=0;y<iHeight;y+=2) {
 			for (var x=0;x<iWidth;x++) {
@@ -231,11 +234,9 @@ THREE.ASCIIRenderer = function() {
 			strChars += "<br/>";
 		}
 	
-
-
 		oAscii.innerHTML = "<tr><td>" + strChars + "</td></tr>";
 
-		console.timeEnd('rendering');
+		// console.timeEnd('rendering');
 		
 		// return oAscii;
 	}
