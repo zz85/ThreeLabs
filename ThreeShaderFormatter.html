@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset=utf-8 />
+<title>Three Shader Formatter</title>
+<!--[if IE]>
+  <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+<![endif]-->
+<style>
+  article, aside, figure, footer, header, hgroup, 
+  menu, nav, section { display: block; }
+</style>
+</head>
+<body>
+  <div>
+    <label>Shader code:<br/>
+  <textarea id="shadercode" style="width:600px; height:480px" onkeydown="convert()">    #ifdef USE_FOG
+        
+        uniform vec3 fogColor;
+        
+        #ifdef FOG_EXP2
+        
+            uniform float fogDensity;
+        
+        #else
+        
+            uniform float fogNear;
+            uniform float fogFar;
+        
+        #endif
+        
+    #endif"</textarea>
+  </label>
+  </div>
+  <div>
+  <label>Three Shader code:<br/>
+  <textarea id="threeshadercode" style="width:600px; height:480px" onkeydown="">Hello World</textarea>
+  </label>
+  </div>
+  <script>
+    
+function process(code) {
+  var threeshader = [ '[','' ];
+  
+  var lines = code.split('\n');
+  for (var i=0;i<lines.length;i++) {
+    var line = lines[i];
+    if (line.trim()!="")
+    line = line.replace(/(\s*)(.*)(\s*)/, '$1"$2"$3,');
+    threeshader.push(line);
+  }
+  threeshader.push('');
+  threeshader.push('].join("\\n");');
+  return threeshader.join('\n');
+}
+
+ 
+function convert() {
+   document.getElementById('threeshadercode').value = process(
+     document.getElementById('shadercode').value
+   );
+
+}
+
+
+convert();
+  </script>
+</body>
+</html>
