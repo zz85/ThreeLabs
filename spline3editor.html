@@ -1,429 +1,573 @@
 <!doctype html>
 <html lang="en">
-    <head>
-        <title>three.js webgl - draggable 3d catmull spline editor</title>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-        <style>
-            body {
-                font-family: Monospace;
-                background-color: #f0f0f0;
-                margin: 0px;
-                overflow: hidden;
-            }
-        </style>
-    </head>
-    <body>
+	<head>
+		<title>three.js webgl - draggable 3d catmull spline editor</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				font-family: Monospace;
+				background-color: #f0f0f0;
+				margin: 0px;
+				overflow: hidden;
+			}
+		</style>
+	</head>
+	<body>
+
+	<script src="https://raw.github.com/mrdoob/three.js/dev/build/three.min.js"></script>
+	<script src="https://raw.github.com/mrdoob/three.js/dev/examples/js/Stats.js"></script>
+	<script src="DragControls.js"></script>
+
+	<script>
+		// Done
+		// 1. DragControls + Trackball + Line
+		// 2. auto detailed divisions
+		// 3. interpolated spline (not used)
+		// 4. plane and shadows + axis helpers
+		// 5. Simple Export + Primitive import
+		// 6. Increase / Decrease Points
+		// 7. Better, Simplier Import / Export
+		// 8. Insert After, Remove Point
+		// add tube. add extrude.
+
+		// Uses new Drag Events
 
-        <script src="https://raw.github.com/mrdoob/three.js/dev/build/Three.js"></script>
-        <script src="https://raw.github.com/mrdoob/three.js/dev/examples/js/Stats.js"></script>
-        <script src="DragControls.js"></script>
+		// Future Enhancements?
+		// 
+		// Better selection highlighting?
+		// Export (URL hash maybe??)s
+		// Animate object / camera along path 
+		// Integrate TubeGeometry / 2D Shape / Spline Editor 
+		// Modify Trackball Controls for finer controls (eg. orthognal views) + mousezooms ++
+		// Re-use UI for Vertex Editor
+		// Integrate Animation Director
+		// Support Bezier Curves?
 
-        <script>
-// Done
-// 1. DragControls + Trackball + Line
-// 2. auto detailed divisions
-// 3. interpolated spline (not used)
-// 4. plane and shadows + axis helpers
-// 5. Simple Export + Primitive import
-// 6. Increase / Decrease Points
-// 7. Better, Simplier Import / Export
+		String.prototype.format = function() {
+			var str = this;
+			for (var i=0; i<arguments.length; i++) {
+				str = str.replace('{'+i+'}', arguments[i]);
+			}
+			return str;
+		}
 
 
-// Future Enhancements?
-// 
-// Insert / Remove Points midway
-// Export (URL hash maybe??)
-// Animate object / camera along path 
-// Integrate TubeGeometry / 2D Shape / Spline Editor 
-// Modify Trackball Controls for finer controls (eg. orthognal views)
-// Re-use UI for Vertex Editor
-// Integrate Animation Director
-// Support Bezier Curves?
+		THREE.Curve.Utils.createLineGeometry = function( points ) {
 
-String.prototype.format = function() {
-    var str = this;
-    for (var i=0; i<arguments.length; i++) {
-        str = str.replace('{'+i+'}', arguments[i]);
-    }
-    return str;
-}
+			var geometry = new THREE.Geometry();
 
+			for( var i = 0; i < points.length; i ++ ) {
 
-THREE.Curve.Utils.createLineGeometry = function( points ) {
+				geometry.vertices.push( points[i] );
 
-    var geometry = new THREE.Geometry();
+			}
 
-    for( var i = 0; i < points.length; i ++ ) {
+			return geometry;
 
-        geometry.vertices.push( points[i] );
+		};
 
-    }
 
-    return geometry;
+		//---------
 
-};
+		var container, stats;
+		var camera, scene, renderer;
+		var splineObjects = [], splineOutline;
+		var splineCurve,  splinePointsLength = 4;
+		var positions = [];
+		var i;
 
+		var options; // div
 
-//---------
+		var lastSelected;
+		var domEvent;
+		var geometry = new THREE.CubeGeometry(20, 20, 20);
+		var info2;
+		var tubeMesh;
+		var dragControls;
 
-var container, stats;
-var camera, scene, renderer;
-var splineObjects = [], splineOutline;
-var splineCurve,  splinePointsLength = 4;
-var positions = [];
-var i;
+		function addSplineObject(position, n) {
+			var object = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({
+				color: Math.random() * 0xffffff
+			}));
 
-var options; // div
+			object.material.ambient = object.material.color;
 
+			if (position) {
+				object.position = position;
+			}
 
+			object.castShadow = true;
+			object.receiveShadow = true;
 
-var geometry = new THREE.CubeGeometry(20, 20, 20);
+			scene.add(object);
 
-function addSplineObject(position) {
-    var object = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({
-        color: Math.random() * 0xffffff
-    }));
+			if (n !== undefined) 
+				splineObjects.splice(n, 0, object);
+			else 
+				splineObjects.push(object);
+			return object;
+		}
 
-    object.material.ambient = object.material.color;
 
-    if (position) {
-        object.position = position;
-    }
+		init();
+		animate();
 
-    object.castShadow = true;
-    object.receiveShadow = true;
+		function init() {
 
-    scene.add(object);
+			container = document.createElement('div');
+			document.body.appendChild(container);
 
-    splineObjects.push(object);
+			scene = new THREE.Scene();
 
-    return object;
-}
+			camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 1, 10000);
+			camera.position.z = 1000;
+			scene.add(camera);
 
+			// Trackball Controls
+			controls = new THREE.TrackballControls( camera );
 
-init();
-animate();
+			controls.rotateSpeed = 1.0;
+			controls.zoomSpeed = 1.2;
+			controls.panSpeed = 0.8;
 
-function init() {
+			controls.noZoom = false;
+			controls.noPan = false;
 
-    container = document.createElement('div');
-    document.body.appendChild(container);
+			controls.staticMoving = true;
+			controls.dynamicDampingFactor = 0.3;
 
-    scene = new THREE.Scene();
+			controls.keys = [ 65, 83, 68 ];
 
-    camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 1, 10000);
-    camera.position.z = 1000;
-    scene.add(camera);
+			controls.addEventListener( 'change', render );
 
+			// 
 
-    // Trackball Controls
-    controls = new THREE.TrackballControls( camera );
 
-    controls.rotateSpeed = 1.0;
-    controls.zoomSpeed = 1.2;
-    controls.panSpeed = 0.8;
+			scene.add(new THREE.AmbientLight(0xf0f0f0));
 
-    controls.noZoom = false;
-    controls.noPan = false;
+			var light = new THREE.SpotLight(0xffffff, 1.5);
+			light.position.set(0, 1500, 200);
+			light.castShadow = true;
 
-    controls.staticMoving = true;
-    controls.dynamicDampingFactor = 0.3;
+			light.shadowCameraNear = 200;
+			light.shadowCameraFar = camera.far;
+			light.shadowCameraFov = 70;
 
-    controls.keys = [ 65, 83, 68 ];
+			light.shadowBias = -0.000222;
+			light.shadowDarkness = 0.25;
 
-    controls.addEventListener( 'change', render );
+			light.shadowMapWidth = 1024;
+			light.shadowMapHeight = 1024;
 
-    // 
+			scene.add(light);
 
+			spotlight = light;
 
-    scene.add(new THREE.AmbientLight(0xf0f0f0));
 
-    var light = new THREE.SpotLight(0xffffff, 1.5);
-    light.position.set(0, 1500, 200);
-    light.castShadow = true;
+			var planeGeometry = new THREE.PlaneGeometry(2000, 2000, 20, 20);
+			var planeMaterials = [
+				new THREE.MeshBasicMaterial( { color: 0xeeeeee, opacity: 0.5 } ), // have to use basic otherwise, some lighting is killing shadows
+				new THREE.MeshBasicMaterial( { color: 0x405040, wireframe: true, opacity: 0.2, transparent: true } )
+			];
 
-    light.shadowCameraNear = 200;
-    light.shadowCameraFar = camera.far;
-    light.shadowCameraFov = 70;
+			var plane = THREE.SceneUtils.createMultiMaterialObject( planeGeometry, planeMaterials );
+			plane.position.y = -500;
+			plane.children[0].castShadow = false;
+			plane.children[0].receiveShadow = true;
+			scene.add(plane);
 
-    light.shadowBias = -0.000222;
-    light.shadowDarkness = 0.25;
+			var axis = new THREE.AxisHelper();
+			axis.position.set(-500, -500, -500);
+			scene.add(axis);
 
-    light.shadowMapWidth = 1024;
-    light.shadowMapHeight = 1024;
+			renderer = new THREE.WebGLRenderer({
+				antialias: true
+			});
+			renderer.sortObjects = false;
+			renderer.setSize(window.innerWidth, window.innerHeight);
 
-    scene.add(light);
+			renderer.shadowMapEnabled = true;
+			renderer.shadowMapSoft = true;
 
-    spotlight = light;
+			container.appendChild(renderer.domElement);
 
+			var info = document.createElement('div');
+			info.style.position = 'absolute';
+			info.style.top = '10px';
+			info.style.width = '100%';
+			info.style.textAlign = 'center';
+			info.innerHTML = '<a href="http://github.com/mrdoob/three.js" target="_blank">three.js</a> - simple 3d catmull-rom <a href="http://twitter.com/blurspline" target="_blank">@blurspline</a> spline editor';
+			
 
-    var planeGeometry = new THREE.PlaneGeometry(2000, 2000, 20, 20);
-    var planeMaterials = [
-        new THREE.MeshBasicMaterial( { color: 0xeeeeee, opacity: 0.5 } ), // have to use basic otherwise, some lighting is killing shadows
-        new THREE.MeshBasicMaterial( { color: 0x405040, wireframe: true, opacity: 0.2, transparent: true } )
-    ];
+			options = document.createElement('div');
+			options.style.position = 'absolute';
+			options.style.top = '30px';
+			options.style.width = '100%';
+			options.style.textAlign = 'center';
+			options.innerHTML = '<div id="info2"></div>Points: \
+				<input type="button" onclick="points(1);" value="+" />\
+				<input type="button" onclick="points(-1);" value="-" /><br />\
+				<input type="button" onclick="addTube();" value="Create Tube" /><br />\
+				<input type="button" onclick="insertAfter();" value="Insert After" /><br />\
+				<input type="button" onclick="removeAction();" value="Delete" /><br />\
+				<input type="button" onclick="exportAction();" value="Export" />\
+				<input type="button" onclick="importAction();" value="Import" />\
+				<input type="button" onclick="exportToCode();" value="Export to Code" />';
+		   
 
-    var plane = THREE.SceneUtils.createMultiMaterialObject( planeGeometry, planeMaterials );
-    plane.position.y = -500;
-    plane.children[0].castShadow = false;
-    plane.children[0].receiveShadow = true;
-    scene.add(plane);
+			container.appendChild(info);
+			container.appendChild(options);
+			info2 = document.getElementById('info2');
 
-    var axis = new THREE.AxisHelper();
-    axis.position.set(-500, -500, -500);
-    scene.add(axis);
+			stats = new Stats();
+			stats.domElement.style.position = 'absolute';
+			stats.domElement.style.top = '0px';
+			container.appendChild(stats.domElement);
 
-    renderer = new THREE.WebGLRenderer({
-        antialias: true
-    });
-    renderer.sortObjects = false;
-    renderer.setSize(window.innerWidth, window.innerHeight);
+			// activate Drag Controls
+			dragControls = new THREE.DragControls(camera, splineObjects, renderer.domElement);
 
-    renderer.shadowMapEnabled = true;
-    renderer.shadowMapSoft = true;
+			dragControls.on('mousedown', function(e) {
+				
+				// console.log('mousedown',e);
 
-    container.appendChild(renderer.domElement);
+				if (e.hit) {
+					controls.enabled = false;
+					lastSelected = splineObjects.indexOf(e.object);
+					info.innerHTML = 'Selected point #' + lastSelected;
+				}
+			
+			});
 
-    var info = document.createElement('div');
-    info.style.position = 'absolute';
-    info.style.top = '10px';
-    info.style.width = '100%';
-    info.style.textAlign = 'center';
-    info.innerHTML = '<a href="http://github.com/mrdoob/three.js" target="_blank">three.js</a> - simple 3d catmull-rom <a href="http://twitter.com/blurspline" target="_blank">@blurspline</a> spline editor';
-    
+			dragControls.on('drag', updateSplineOutline);
+			dragControls.on('dragend', function() {
+				addTube();
+			});
 
-    options = document.createElement('div');
-    options.style.position = 'absolute';
-    options.style.top = '30px';
-    options.style.width = '100%';
-    options.style.textAlign = 'center';
-    options.innerHTML = '<div id="info2"></div>Points: <input type="button" onclick="points(1);" value="+" /><input type="button" onclick="points(-1);" value="-" /><br /><input type="button" onclick="exportAction();" value="Export" /><input type="button" onclick="importAction();" value="Import" /><input type="button" onclick="exportToCode();" value="Export to Code" />';
-   
 
-    container.appendChild(info);
-    container.appendChild(options);
+			dragControls.on('mouseup', function(e) {
+				controls.enabled = true;
+				// console.log('mouseup', e);
+			});
 
-    stats = new Stats();
-    stats.domElement.style.position = 'absolute';
-    stats.domElement.style.top = '0px';
-    container.appendChild(stats.domElement);
 
-    // activate Drag Controls
-    var dragcontrols = new THREE.DragControls(camera, splineObjects, renderer.domElement);
+			// Uncomment this line if you wish to load from exports
+			load();
 
-    dragcontrols.onHit = function(hit) {
+		}
 
-        if (hit) {
-            controls.enabled = false;
-        } else {
-            controls.enabled = true;
-        }
-    }
+		function addTube() {
+			
+			if (tubeMesh) scene.remove(tubeMesh);
 
-    dragcontrols.onDragged = updateSplineOutline;
+			var segments = 200, radius = 4, radiusSegments = 6, closed2 = true, debug = true, color = 0x0000bb;
+			
+			segments = Math.floor(splineCurve.getLength() / 20);
+			console.log(segments);
 
+			// var tube = new THREE.TubeGeometry(splineCurve, segments, radius, radiusSegments, closed2, debug);
 
-    // Uncomment this line if you wish to load from exports
-    load();
+			var extrudeSettings = { 
+				// amount: 200,  
+				bevelEnabled: false,
+				steps: 150,
+				extrudePath: splineCurve
+			}; 
 
-}
+			var s = new THREE.Shape();
 
-function points(offset) {
+			s.moveTo(20,0);
+			s.arc(20, 0, 5, 0, Math.PI * 2);
 
-    splinePointsLength += offset;
+			var s2 = new THREE.Shape();
+			s2.moveTo(-20,0);
+			s2.arc(-20, 0, 5, 0, Math.PI * 2);
 
-    if (splinePointsLength < 4) {
-        splinePointsLength = 4;
-        return;
-    }
+			var s3 = new THREE.Shape();
+			s3.moveTo(0,-20);
+			s3.lineTo(10, -10);
+			s3.lineTo(-10, -10);
+			s3.lineTo(0,-20);
 
-    if (offset > 0) {
-        while (offset--) {
-            positions.push(addSplineObject().position)
-        }
+			// s3.arc(0, -20, 5, 0, Math.PI * 2);
 
-    } else {
-        offset = -offset;
-        while (offset--) {
-            positions.pop();
-            scene.remove(splineObjects.pop());
-        }
 
-    }
+			 tube = new THREE.ExtrudeGeometry([s, s2, s3], extrudeSettings);
 
-    updateSplineOutline();
 
-}
+			// var circleRadius = 4;
 
+			// var circleShape = new THREE.Shape();
 
-function updateSplineOutline() {
+			// circleShape.moveTo( 0, circleRadius );
 
-    document.getElementById('info2').innerHTML = splinePointsLength + ' points';
+			// circleShape.quadraticCurveTo( circleRadius, circleRadius, circleRadius, 0 );
 
-    if (splineOutline) scene.remove( splineOutline );
+			// circleShape.quadraticCurveTo( circleRadius, -circleRadius, 0, -circleRadius );
 
-    splineCurve.updateArcLengths();
-    var arcLen = splineCurve.getLength();
-    
-    arcLen = Math.floor(arcLen/ 20);
-    // console.log('len', arcLen);
+			// circleShape.quadraticCurveTo( -circleRadius, -circleRadius, -circleRadius, 0 );
 
-    var spacedPoints = THREE.Curve.Utils.createLineGeometry(splineCurve.getPoints(arcLen)); //200 // getSpacedPoints
+			// circleShape.quadraticCurveTo( -circleRadius, circleRadius, 0, circleRadius);
 
-    splineOutline = new THREE.Line( spacedPoints, new THREE.LineBasicMaterial( { color: 0x000000, opacity: 0.35 } ) );
+			// tube = circleShape.extrude(extrudeSettings);
 
-    scene.add( splineOutline );
-}
+			tubeMesh = THREE.SceneUtils.createMultiMaterialObject(tube, [
+				  new THREE.MeshLambertMaterial({
+					  color: color,
+					  opacity: (geometry.debug) ? 0.2 : 0.8,
+					  transparent: true
+				  }),
+				 new THREE.MeshBasicMaterial({
+					color: 0x000000,
+					opacity: 0.5,
+					wireframe: true
+				})]);
 
-function exportAction() {
-    prompt('code', exportSpline2());
-}
+			scene.add(tubeMesh);
+		}
 
-function importAction() {
-    var code = prompt("enter code");
-    if (code) {
-        importSpline(code);
-        load();
-    }
-}
+		function points(offset) {
 
-function exportToCode() {
-    var p;
-    var strplace = [];
-    for (i = 0; i < splinePointsLength; i++) {
-        p = splineObjects[i].position;
-        strplace.push('new THREE.Vector3({0}, {1}, {2})'.format(p.x, p.y, p.z) )
-    }
+			splinePointsLength += offset;
 
-    console.log(strplace.join(',\n'));
-    var code = '[' + (strplace.join(',\n\t')) + ']'; //<br/>
-    prompt('copy and paste code', code);
-}
+			if (splinePointsLength < 4) {
+				splinePointsLength = 4;
+				return;
+			}
 
-function importSpline(s) {
-    var points = s.split(',');
+			if (offset > 0) {
+				while (offset--) {
+					positions.push(addSplineObject().position)
+				}
 
-    positions = [];
-    for (i=0;i<points.length;i++) {
-        points[i] = parseFloat(points[i], 3);
-    }
+			} else {
+				offset = -offset;
+				while (offset--) {
+					positions.pop();
+					scene.remove(splineObjects.pop());
+				}
 
-    for (i=0;i+2<points.length;i+=3) {
-        // console.log(i);
-        positions.push(new THREE.Vector3(points[i], points[i+1], points[i+2]));
-    }
+			}
 
-    return positions;
-}
+			updateSplineOutline();
 
-function exportSpline() {
+		}
 
-    var allpoints = [], p;
-    for (i = 0; i < splinePointsLength; i++) {
-        p = splineObjects[i].position;
-        allpoints.push(p.x.toFixed(3));
-        allpoints.push(p.y.toFixed(3));
-        allpoints.push(p.z.toFixed(3));
-    }
+		function removeAction() {
+			if (lastSelected>-1) {
 
-    return allpoints.join(',');
+				if (splinePointsLength<=4) {
+					console.log('sorry, cannot remove');
+					return;
+				}
 
-}
+				scene.remove(splineObjects[lastSelected]);
+				splineObjects.splice(lastSelected, 1);
+				positions.splice(lastSelected, 1);
+				splinePointsLength = splineObjects.length;
+				updateSplineOutline();
+				// console.log(positions);
+			}
+		}
 
-function importRandom() {
+		function insertAfter() {
+			if (lastSelected>-1) {
 
-    positions = [];
-     for (i=0;i<4;i++) {
-        positions.push(
-            new THREE.Vector3(
-                Math.random() * 1000 - 500,
-                Math.random() * 600 - 300,
-                Math.random() * 800 - 400
-            )
-        );
-    }
-}
+				// var p1 = positions[lastSelected];
+				// var p2 = positions[lastSelected + 1];
 
-function importTest() {
-    positions = [
-        new THREE.Vector3(-213.12552068360054, -294.1922074745087, -0.03978996232257259),
-        new THREE.Vector3(29.99553601021495, -243.11318001675306, 280.78482599069616),
-        new THREE.Vector3(-97.75986506175894, -64.54552418022524, 55.64806371267258),
-        new THREE.Vector3(-314.408250336442, 235.23205516762346, -5.893017170859991),
-        new THREE.Vector3(22.034622881439077, 162.8965831284607, -345.10495452036184),
-        new THREE.Vector3(134.59056654199452, 382.5168668673815, -198.91479606872133),
-        new THREE.Vector3(477.5022172612489, -4.8651203633506555, -210.47236097401574),
-        new THREE.Vector3(449.0486673017501, 4.918562856246474, 52.560123928679985),
-        new THREE.Vector3(280.6397761972279, -290.27337790622795, 40.210017846524124),
-        new THREE.Vector3(163.10498799765227, -369.03871116931487, -173.83095096616034) 
-    ];
+				// // if its unclosed
+				// // if (!p2) p2 = positions[lastSelected - 1].clone().multiplyScalar(2).subSelf(p1);
+				// // if closed
+				// if (!p2) p2 = positions[0];
 
-}
+				// var pos = p2.clone().subSelf(p1).divideScalar(2).addSelf(p1);
 
+				var pos = splineCurve.getPoint((lastSelected + 0.5) / splinePointsLength)
 
-function load() {
-    
-    if (positions.length <4) {
-        importRandom();
-    }
+				console.log(positions, pos);
+				positions.splice(lastSelected + 1, 0, pos);
+				console.log(positions);
 
-    splinePointsLength = positions.length;
+				addSplineObject(pos, lastSelected + 1);
+				splinePointsLength = splineObjects.length;
 
-    // Remove spline objects if any
+				updateSplineOutline();
+				// console.log(positions);
+			}
+		}
 
-    while (splineObjects.length) {
 
-        scene.remove(splineObjects.pop());
-    }
+		function updateSplineOutline() {
 
-    // Add spline helper objects
+			info2.innerHTML = splinePointsLength + ' points';
 
-    for (i = 0; i < splinePointsLength; i++) {
+			if (splineOutline) scene.remove( splineOutline );
 
-        addSplineObject(positions[i]);
+			splineCurve.updateArcLengths();
+			var arcLen = splineCurve.getLength();
+			
+			arcLen = Math.floor(arcLen/ 20);
+			// console.log('len', arcLen);
 
-    }
-    
-    splineCurve = new THREE.SplineCurve3(positions);
+			var spacedPoints = THREE.Curve.Utils.createLineGeometry(splineCurve.getPoints(arcLen)); //200 // getSpacedPoints
 
-    updateSplineOutline();
+			splineOutline = new THREE.Line( spacedPoints, new THREE.LineBasicMaterial( { color: 0x000000, opacity: 0.35 } ) );
 
-}
+			scene.add( splineOutline );
+		}
 
-//
+		function exportAction() {
+			prompt('code', exportSpline());
+		}
 
-function animate() {
+		function importAction() {
+			var code = prompt("enter code");
+			if (code) {
+				importSpline(code);
+				load();
+			}
+		}
 
-    requestAnimationFrame(animate);
+		function exportToCode() {
+			var p;
+			var strplace = [];
+			for (i = 0; i < splinePointsLength; i++) {
+				p = splineObjects[i].position;
+				strplace.push('new THREE.Vector3({0}, {1}, {2})'.format(p.x, p.y, p.z) )
+			}
 
-    render();
-    stats.update();
-    
-    if (controls.enabled) 
-        controls.update();
+			console.log(strplace.join(',\n'));
+			var code = '[' + (strplace.join(',\n\t')) + ']'; //<br/>
+			prompt('copy and paste code', code);
+		}
 
-}
+		function importSpline(s) {
+			var points = s.split(',');
 
-function render() {
+			positions = [];
+			for (i=0;i<points.length;i++) {
+				points[i] = parseFloat(points[i], 3);
+			}
 
-    renderer.render(scene, camera);
-    
+			for (i=0;i+2<points.length;i+=3) {
+				// console.log(i);
+				positions.push(new THREE.Vector3(points[i], points[i+1], points[i+2]));
+			}
 
-}
+			return positions;
+		}
 
-</script>
+		function exportSpline() {
 
+			var allpoints = [], p;
+			for (i = 0; i < splinePointsLength; i++) {
+				p = splineObjects[i].position;
+				allpoints.push(p.x.toFixed(3));
+				allpoints.push(p.y.toFixed(3));
+				allpoints.push(p.z.toFixed(3));
+			}
 
-<script type="text/javascript"> 
-        var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
-        document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
-        </script> 
-        <script type="text/javascript"> 
-        try {
-        var pageTracker = _gat._getTracker("UA-7549263-1");
-        pageTracker._trackPageview();
-        } catch(err) {}
-</script> 
+			return allpoints.join(',');
+
+		}
+
+		function importRandom() {
+
+			positions = [];
+			 for (i=0;i<4;i++) {
+				positions.push(
+					new THREE.Vector3(
+						Math.random() * 1000 - 500,
+						Math.random() * 600 - 300,
+						Math.random() * 800 - 400
+					)
+				);
+			}
+		}
+
+		function importTest() {
+			positions = [
+				new THREE.Vector3(-213.12552068360054, -294.1922074745087, -0.03978996232257259),
+				new THREE.Vector3(29.99553601021495, -243.11318001675306, 280.78482599069616),
+				new THREE.Vector3(-97.75986506175894, -64.54552418022524, 55.64806371267258),
+				new THREE.Vector3(-314.408250336442, 235.23205516762346, -5.893017170859991),
+				new THREE.Vector3(22.034622881439077, 162.8965831284607, -345.10495452036184),
+				new THREE.Vector3(134.59056654199452, 382.5168668673815, -198.91479606872133),
+				new THREE.Vector3(477.5022172612489, -4.8651203633506555, -210.47236097401574),
+				new THREE.Vector3(449.0486673017501, 4.918562856246474, 52.560123928679985),
+				new THREE.Vector3(280.6397761972279, -290.27337790622795, 40.210017846524124),
+				new THREE.Vector3(163.10498799765227, -369.03871116931487, -173.83095096616034) 
+			];
+
+		}
+
+
+		function load() {
+			
+			if (positions.length <4) {
+				importRandom();
+			}
+
+			splinePointsLength = positions.length;
+
+			// Remove spline objects if any
+
+			while (splineObjects.length) {
+
+				scene.remove(splineObjects.pop());
+			}
+
+			// Add spline helper objects
+
+			for (i = 0; i < splinePointsLength; i++) {
+
+				addSplineObject(positions[i]);
+
+			}
+
+			var ChosenCuve = THREE.ClosedSplineCurve3;
+			
+			splineCurve = new ChosenCuve(positions); // SplineCurve3
+
+			updateSplineOutline();
+
+		}
+
+		//
+
+		function animate() {
+
+			requestAnimationFrame(animate);
+
+			render();
+			stats.update();
+			
+			if (controls.enabled) 
+				controls.update();
+
+		}
+
+		function render() {
+
+			renderer.render(scene, camera);
+			
+
+		}
+
+	</script>
+
+
+	<script type="text/javascript"> 
+			var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+			document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+			</script> 
+			<script type="text/javascript"> 
+			try {
+			var pageTracker = _gat._getTracker("UA-7549263-1");
+			pageTracker._trackPageview();
+			} catch(err) {}
+	</script> 
 </body>
 </html>​
