@@ -70,6 +70,14 @@ THREE.DragControls = function(_camera, _objects, _domElement) {
         }
     };
 
+    this.setObjects = function(objects) {
+        if (objects instanceof THREE.Scene) {
+            _objects = objects.children;
+        } else {
+            _objects = objects;
+        }
+    };
+
 
     // Drag constrains (eg. move along x-axis only, y only, x and y, or default xyz)
     var moveX, moveY, moveZ;
@@ -100,6 +108,8 @@ THREE.DragControls = function(_camera, _objects, _domElement) {
 
 
     function onDocumentMouseMove(event) {
+
+        if (!me.enabled) return;
 
         event.preventDefault();
 
@@ -139,6 +149,8 @@ THREE.DragControls = function(_camera, _objects, _domElement) {
 
     function onDocumentMouseDown(event) {
 
+        if (!me.enabled) return;
+
         event.preventDefault();
 
         _mouse.x = (event.clientX / _domElement.width) * 2 - 1;
@@ -167,6 +179,8 @@ THREE.DragControls = function(_camera, _objects, _domElement) {
     }
 
     function onDocumentMouseUp(event) {
+
+        if (!me.enabled) return;
 
         event.preventDefault();
 
