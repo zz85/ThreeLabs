@@ -46,7 +46,7 @@ function process(code) {
   for (var i=0;i<lines.length;i++) {
     var line = lines[i];
     if (line.trim()!="")
-    line = line.replace(/(\s*)(.*)(\s*)/, '$1"$2"$3,');
+    line = line.replace('"', '\\"').replace(/(\s*)(.*)(\s*)/, '$1"$2"$3,');
     threeshader.push(line);
   }
   threeshader.push('');
