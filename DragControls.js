@@ -119,8 +119,8 @@ THREE.DragControls = function(_camera, _objects, _domElement) {
         var ray = _projector.pickingRay(_mouse, _camera);
 
         if (me.enabled && _selected) {
-            var targetPos = ray.direction.clone().multiplyScalar(_selected.distance).addSelf(ray.origin);
-            targetPos.subSelf(_offset);
+            var targetPos = ray.ray.direction.clone().multiplyScalar(_selected.distance).add(ray.ray.origin);
+            targetPos.sub(_offset);
             // _selected.object.position.copy(targetPos.subSelf(_offset));
 
             // Reverse Matrix?
