@@ -20,7 +20,7 @@ THREE.DragControls = function(_camera, _objects, _domElement) {
     if (_objects instanceof THREE.Scene) {
         _objects = _objects.children;
     }
-    var _projector = new THREE.Projector();
+//    var _projector = new THREE.Projector();
 
     var _mouse = new THREE.Vector3(),
         _offset = new THREE.Vector3();
@@ -116,7 +116,11 @@ THREE.DragControls = function(_camera, _objects, _domElement) {
         _mouse.x = (event.clientX / _domElement.width) * 2 - 1;
         _mouse.y = -(event.clientY / _domElement.height) * 2 + 1;
 
-        var ray = _projector.pickingRay(_mouse, _camera);
+		var vector = new THREE.Vector3( mouse.x, mouse.y, 0.5 ).unproject( camera );
+
+		var ray = new THREE.Raycaster( camera.position, vector.sub( camera.position ).normalize() );
+		
+ //       var ray = _projector.pickingRay(_mouse, _camera);
 
         if (me.enabled && _selected) {
             var targetPos = ray.ray.direction.clone().multiplyScalar(_selected.distance).add(ray.ray.origin);
@@ -156,7 +160,11 @@ THREE.DragControls = function(_camera, _objects, _domElement) {
         _mouse.x = (event.clientX / _domElement.width) * 2 - 1;
         _mouse.y = -(event.clientY / _domElement.height) * 2 + 1;
 
-        var ray = _projector.pickingRay(_mouse, _camera);
+		var vector = new THREE.Vector3( mouse.x, mouse.y, 0.5 ).unproject( camera );
+
+		var ray = new THREE.Raycaster( camera.position, vector.sub( camera.position ).normalize() );
+		
+//        var ray = _projector.pickingRay(_mouse, _camera);
         var intersects = ray.intersectObjects(_objects);
 
         var hit = intersects.length > 0;
@@ -164,7 +172,7 @@ THREE.DragControls = function(_camera, _objects, _domElement) {
         if (hit) {
             _selected = intersects[0];
             
-            _offset.copy(_selected.point).subSelf(_selected.object.position);
+            _offset.copy(_selected.point).sub(_selected.object.position);
 
             _domElement.style.cursor = 'move';
 
