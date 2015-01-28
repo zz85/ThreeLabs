@@ -21,6 +21,7 @@ THREE.DragControls = function(_camera, _objects, _domElement) {
         _objects = _objects.children;
     }
     var _projector = new THREE.Projector();
+    var _raycaster = new THREE.Raycaster();
 
     var _mouse = new THREE.Vector3(),
         _offset = new THREE.Vector3();
@@ -116,12 +117,15 @@ THREE.DragControls = function(_camera, _objects, _domElement) {
         _mouse.x = (event.clientX / _domElement.width) * 2 - 1;
         _mouse.y = -(event.clientY / _domElement.height) * 2 + 1;
 
-        var ray = _projector.pickingRay(_mouse, _camera);
+        _raycaster.setFromCamera( _mouse, _camera );
+        var intersects = _raycaster.intersectObjects(_objects);
+        var ray = _raycaster.ray;
+
 
         if (me.enabled && _selected) {
-            var targetPos = ray.direction.clone().multiplyScalar(_selected.distance).addSelf(ray.origin);
-            targetPos.subSelf(_offset);
-            // _selected.object.position.copy(targetPos.subSelf(_offset));
+            var targetPos = ray.direction.clone().multiplyScalar(_selected.distance).add(ray.origin);
+            targetPos.sub(_offset);
+            // _selected.object.position.copy(targetPos.sub(_offset));
 
             // Reverse Matrix?
             // Hmm, quick hack - should do some kind of planar projection..
@@ -133,7 +137,7 @@ THREE.DragControls = function(_camera, _objects, _domElement) {
 
         }
 
-        var intersects = ray.intersectObjects(_objects);
+        var intersects = _raycaster.intersectObjects(_objects);
 
         if (intersects.length > 0) {
 
@@ -156,15 +160,15 @@ THREE.DragControls = function(_camera, _objects, _domElement) {
         _mouse.x = (event.clientX / _domElement.width) * 2 - 1;
         _mouse.y = -(event.clientY / _domElement.height) * 2 + 1;
 
-        var ray = _projector.pickingRay(_mouse, _camera);
-        var intersects = ray.intersectObjects(_objects);
+        _raycaster.setFromCamera( _mouse, _camera );
+        var intersects = _raycaster.intersectObjects(_objects);
 
         var hit = intersects.length > 0;
 
         if (hit) {
             _selected = intersects[0];
             
-            _offset.copy(_selected.point).subSelf(_selected.object.position);
+            _offset.copy(_selected.point).sub(_selected.object.position);
 
             _domElement.style.cursor = 'move';
 
