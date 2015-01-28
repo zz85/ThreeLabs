@@ -44,7 +44,7 @@
 	var splineCurve, splinePointsLength = 4;
 	var positions = [];
 	var options;
-	var geometry = new THREE.CubeGeometry(20, 20, 20);
+	var geometry = new THREE.BoxGeometry(20, 20, 20);
 
 	function addSplineObject(position) {
 		var object = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({
@@ -98,6 +98,7 @@
 		scene.add(light);
 		spotlight = light;
 		var planeGeometry = new THREE.PlaneGeometry(2000, 2000, 20, 20);
+		planeGeometry.applyMatrix( new THREE.Matrix4().makeRotationX( - Math.PI / 2 ) );
 		var planeMaterials = [new THREE.MeshBasicMaterial({
 			color: 0xeeeeee,
 			opacity: 0.5
@@ -128,7 +129,7 @@
 		renderer = new THREE.WebGLRenderer({
 			antialias: true
 		});
-		renderer.sortObjects = false;
+		renderer.setClearColor( 0xf0f0f0 );
 		renderer.setSize(window.innerWidth, window.innerHeight);
 		renderer.shadowMapEnabled = true;
 		renderer.shadowMapSoft = true;
@@ -152,15 +153,6 @@
 		stats.domElement.style.top = '0px';
 		container.appendChild(stats.domElement);
 		var dragcontrols = new THREE.DragControls(camera, splineObjects, renderer.domElement);
-		// dragcontrols.onHit = function (hit) {
-		// 	if (hit) {
-		// 		controls.enabled = false;
-		// 		console.log('hit')
-		// 	} else {
-		// 		controls.enabled = true;
-		// 	}
-		// }
-		// dragcontrols.onDragged = updateSplineOutline;
 
 		dragcontrols.on('dragstart', function() {
 			controls.enabled = false;
