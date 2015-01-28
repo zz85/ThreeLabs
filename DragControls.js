@@ -36,7 +36,6 @@ THREE.DragControls = function(_camera, _objects, _domElement) {
     // Enable Drag
     this.enabled = true; 
 
-    // TODO: use event dispatcher?
     /* Custom Event Handling */
     var _listeners = {
 

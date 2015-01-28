@@ -149,17 +149,16 @@
 		stats.domElement.style.position = 'absolute';
 		stats.domElement.style.top = '0px';
 		container.appendChild(stats.domElement);
-		var dragcontrols = new THREE.DragControlsByPlane(camera, splineObjects, renderer.domElement);
+		var dragcontrols = new THREE.DragControlsByPlane(camera, splineObjects, renderer.domElement); // DragControlsByPlane DragControls
 
-		// dragcontrols.on('dragstart', function() {
-		// 	controls.enabled = false;
-		// 	console.log('hit')
-		// });
+		dragcontrols.on('dragstart', function() {
+			controls.enabled = false;
+		});
 
-		// dragcontrols.on('dragend', function() {
-		// 	controls.enabled = true;
-		// 	updateSplineOutline();
-		// });
+		dragcontrols.on('dragend', function() {
+			controls.enabled = true;
+			updateSplineOutline();
+		});
 	}
 
 	function points(offset) {

@@ -23,7 +23,41 @@ THREE.DragControlsByPlane = function(_camera, _objects, _domElement) {
     var targetposition = new THREE.Vector3();
     var zerovector = new THREE.Vector3();
 
+     /* Custom Event Handling */
+    var _listeners = {
 
+    };
+
+    var me = this;
+    this.on = function(event, handler) {
+        if (!_listeners[event]) _listeners[event] = [];
+
+        _listeners[event].push(handler);
+        return me;
+    };
+
+    this.off = function(event, handler) {
+        var l = _listeners[event];
+        if (!l) return me;
+
+        if (l.indexOf(handler)>-1) {
+            l.splice(handler, 1);
+        }
+
+        return me;
+
+    };
+
+    var notify = function(event, data, member) {
+        var l = _listeners[event];
+        if (!l) return;
+
+        if (!member) {
+            for (var i=0;i<l.length;i++) {
+                l[i](data);
+            }
+        }
+    };
 
     this.setObjects = function(objects) {
         if (objects instanceof THREE.Scene) {
@@ -61,7 +95,6 @@ THREE.DragControlsByPlane = function(_camera, _objects, _domElement) {
 
 
         if (_selected) {
-            console.log("test");
             var normal = _selected.normal;
 
             // I found this article useful about plane-line intersections
@@ -102,6 +135,8 @@ THREE.DragControlsByPlane = function(_camera, _objects, _domElement) {
             if (moveY) _selected.object.position.y = targetposition.y;
             if (moveZ) _selected.object.position.z = targetposition.z;
 
+            notify('drag', _selected);
+
             return;
 
         }
@@ -141,6 +176,8 @@ THREE.DragControlsByPlane = function(_camera, _objects, _domElement) {
 
             _domElement.style.cursor = 'move';
 
+            notify('dragstart', _selected);
+
         }
 
 
@@ -151,6 +188,8 @@ THREE.DragControlsByPlane = function(_camera, _objects, _domElement) {
         event.preventDefault();
 
         if (_selected) {
+
+            notify('dragend', _selected);
             _selected = null;
         }
 
