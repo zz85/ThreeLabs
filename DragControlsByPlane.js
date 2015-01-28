@@ -12,8 +12,8 @@
  */
 THREE.DragControlsByPlane = function(_camera, _objects, _domElement) {
 
-
     var _projector = new THREE.Projector();
+    var _raycaster = new THREE.Raycaster();
 
     var _mouse = new THREE.Vector3(),
         _offset = new THREE.Vector3();
@@ -22,6 +22,8 @@ THREE.DragControlsByPlane = function(_camera, _objects, _domElement) {
     var p3subp1 = new THREE.Vector3();
     var targetposition = new THREE.Vector3();
     var zerovector = new THREE.Vector3();
+
+
 
     this.setObjects = function(objects) {
         if (objects instanceof THREE.Scene) {
@@ -54,10 +56,12 @@ THREE.DragControlsByPlane = function(_camera, _objects, _domElement) {
         _mouse.x = (event.clientX / _domElement.width) * 2 - 1;
         _mouse.y = -(event.clientY / _domElement.height) * 2 + 1;
 
+        _raycaster.setFromCamera( _mouse, _camera );
+        var ray = _raycaster.ray;
 
-        var ray = _projector.pickingRay(_mouse, _camera);
 
         if (_selected) {
+            console.log("test");
             var normal = _selected.normal;
 
             // I found this article useful about plane-line intersections
@@ -70,10 +74,10 @@ THREE.DragControlsByPlane = function(_camera, _objects, _domElement) {
                 return;
             }
 
-            var num = normal.dot(p3subp1.copy(_selected.point).subSelf(ray.origin));
+            var num = normal.dot(p3subp1.copy(_selected.point).sub(ray.origin));
             var u = num / denom;
 
-            targetposition.copy(ray.direction).multiplyScalar(u).addSelf(ray.origin).subSelf(_offset);
+            targetposition.copy(ray.direction).multiplyScalar(u).add(ray.origin).sub(_offset);
             // _selected.object.position.copy(targetposition);
 
             var xLock, yLock, zLock = false;
@@ -90,19 +94,20 @@ THREE.DragControlsByPlane = function(_camera, _objects, _domElement) {
                 moveY = true;
                 moveZ = false;
             } else {
-                moveX = moveY = moveZ = false;
+                moveX = moveY = moveZ = !false;
             }
 
             // Reverse Matrix?
             if (moveX) _selected.object.position.x = targetposition.x;
             if (moveY) _selected.object.position.y = targetposition.y;
             if (moveZ) _selected.object.position.z = targetposition.z;
-            
+
             return;
 
         }
 
-        var intersects = ray.intersectObjects(_objects);
+        _raycaster.setFromCamera( _mouse, _camera );
+        var intersects = _raycaster.intersectObjects(_objects);
 
         if (intersects.length > 0) {
 
@@ -123,14 +128,16 @@ THREE.DragControlsByPlane = function(_camera, _objects, _domElement) {
         _mouse.x = (event.clientX / _domElement.width) * 2 - 1;
         _mouse.y = -(event.clientY / _domElement.height) * 2 + 1;
 
-        var ray = _projector.pickingRay(_mouse, _camera);
-        var intersects = ray.intersectObjects(_objects);
-        var normal = _projector.pickingRay(zerovector, _camera).direction; // normal ray to the camera position
+        _raycaster.setFromCamera( _mouse, _camera );
+        var intersects = _raycaster.intersectObjects(_objects);
+        var ray = _raycaster.ray;
+
+        var normal = ray.direction; // normal ray to the camera position
         if (intersects.length > 0) {
             _selected = intersects[0];
             _selected.ray = ray;
             _selected.normal = normal ;
-            _offset.copy(_selected.point).subSelf(_selected.object.position);
+            _offset.copy(_selected.point).sub(_selected.object.position);
 
             _domElement.style.cursor = 'move';
 
@@ -153,3 +160,6 @@ THREE.DragControlsByPlane = function(_camera, _objects, _domElement) {
 
 
 }
+
+THREE.EventDispatcher.prototype.apply( THREE.DragControlsByPlane.prototype );
+
