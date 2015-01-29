@@ -23,6 +23,7 @@
 	<script src="DragControls3.js"></script>
 	<script src="js/OrbitControls.js"></script>
 	<script src="js/TransformControls.js"></script>
+	<script src="js/CatmullRomCurve3.js"></script>
 
 	<script>
 	String.prototype.format = function () {
@@ -42,7 +43,14 @@
 	var options;
 	
 	var geometry = new THREE.BoxGeometry(20, 20, 20);
+	
+
+	var ARC_SEGMENTS = 200;
 	var splineMesh;
+
+	var splines = {
+
+	};
 
 	init();
 	animate();
@@ -54,7 +62,6 @@
 		camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 1, 10000);
 		camera.position.z = 1000;
 		scene.add(camera);
-
 
 		scene.add(new THREE.AmbientLight(0xf0f0f0));
 		var light = new THREE.SpotLight(0xffffff, 1.5);
@@ -81,22 +88,13 @@
 			transparent: true
 		})];
 		var plane = THREE.SceneUtils.createMultiMaterialObject(planeGeometry, planeMaterials);
-		// plane.position.y = -500;
+		plane.position.y = -200;
 		plane.children[0].castShadow = false;
 		plane.children[0].receiveShadow = true;
 		scene.add(plane);
 		var axis = new THREE.AxisHelper();
 		axis.position.set(-500, -500, -500);
 		scene.add(axis);
-		var i;
-		for (i = 0; i < splinePointsLength; i++) {
-			addSplineObject(positions[i]);
-		}
-		positions = [];
-		for (i = 0; i < splinePointsLength; i++) {
-			positions.push(splineHelperObjects[i].position);
-		}
-		splineCurve = new THREE.SplineCurve3(positions);
 
 		renderer = new THREE.WebGLRenderer({
 			antialias: true
@@ -117,7 +115,25 @@
 		options.style.top = '30px';
 		options.style.width = '100%';
 		options.style.textAlign = 'center';
-		options.innerHTML = 'Points: <input type="button" onclick="addPoint();" value="+" /><input type="button" onclick="removePoint();" value="-" /><br /><input type="button" onclick="exportSpline();" value="Export" />';
+
+		options.innerHTML = 'Points: <input type="button" onclick="addPoint();" value="+" />\
+		<input type="button" onclick="removePoint();" value="-" />\
+		<input type="button" onclick="exportSpline();" value="Export" /><br />\
+		<input type="checkbox" id="spline" /> SplineCurve<br />\
+		<input type="checkbox" id="uniform" checked /> <label for="uniform">Uniform Catmull-rom</label>  <input type="range" id="tension" onchange="splines.uniform.tension = tension.value;updateSplineOutline();" min=0 max=1 step=0.01 value=0.5 /> <span id="tension_value" /></span> <br />\
+		<input type="checkbox" id="centripetal" checked /> Centripetal Catmull-rom<br />\
+		<input type="checkbox" id="chordal" checked /> Chordal Catmull-rom<br />';
+
+		// options.innerHTML = '<div id="info2"></div>Points: \
+		// 		<input type="button" onclick="points(1);" value="+" />\
+		// 		<input type="button" onclick="points(-1);" value="-" /><br />\
+		// 		<input type="button" onclick="addTube();" value="Create Tube" /><br />\
+		// 		<input type="button" onclick="insertAfter();" value="Insert After" /><br />\
+		// 		<input type="button" onclick="removeAction();" value="Delete" /><br />\
+		// 		<input type="button" onclick="exportAction();" value="Export" />\
+		// 		<input type="button" onclick="importAction();" value="Import" />\
+		// 		<input type="button" onclick="exportToCode();" value="Export to Code" />';
+
 		container.appendChild(info);
 		container.appendChild(options);
 		stats = new Stats();
@@ -126,7 +142,7 @@
 		container.appendChild(stats.domElement);
 
 		// Controls
-		controls = new THREE.OrbitControls( camera );
+		controls = new THREE.OrbitControls( camera, renderer.domElement );
 		controls.damping = 0.2;
 		controls.addEventListener( 'change', render );
 
@@ -144,12 +160,12 @@
 		});
 
 		transformControl.addEventListener('mouseDown', function(e) {
-			controls.enabled = false;
+			// controls.enabled = false;render
 			cancelHideTransorm(); // *
 		});
 
 		transformControl.addEventListener('mouseUp', function(e) {
-			controls.enabled = true;
+			// controls.enabled = true;
 			// console.log('mouseUp', e, controls);
 			delayHideTransform(); // *
 		});
@@ -213,18 +229,67 @@
 		// });
 
 
-		splineMesh = new THREE.Line(new THREE.Geometry(), new THREE.LineBasicMaterial({
-			color: 0x000000,
-			opacity: 0.35,
-			width: 2
-		}));
+		/*******
+		 * Curves
+		 *********/
 
-		for (var i = 0; i < 200; i++) {
-			splineMesh.geometry.vertices.push(new THREE.Vector3());
+		var i;
+		for (i = 0; i < splinePointsLength; i++) {
+			addSplineObject(positions[i]);
+		}
+		positions = [];
+		for (i = 0; i < splinePointsLength; i++) {
+			positions.push(splineHelperObjects[i].position);
 		}
 
-		scene.add(splineMesh);
-		updateSplineOutline();
+		var geometry = new THREE.Geometry();
+
+		for (var i = 0; i < ARC_SEGMENTS; i++) {
+			geometry.vertices.push(new THREE.Vector3());
+		}
+
+		var curve = new THREE.SplineCurve3(positions)
+		curve.mesh = new THREE.Line(geometry, new THREE.LineBasicMaterial({
+			color: 0x000000,
+			opacity: 0.35,
+			linewidth: 2
+		}));
+		splines.spline = curve;
+
+		curve = new THREE.CatmullRomCurve3(positions);
+		curve.type = 'catmullrom';
+		curve.mesh = new THREE.Line(geometry.clone(), new THREE.LineBasicMaterial({
+			color: 0xff0000,
+			opacity: 0.35,
+			linewidth: 2
+		}));
+		splines.uniform = curve;
+
+		curve = new THREE.CatmullRomCurve3(positions);
+		curve.type = 'centripetal';
+		curve.mesh = new THREE.Line(geometry.clone(), new THREE.LineBasicMaterial({
+			color: 0x00ff00,
+			opacity: 0.35,
+			linewidth: 2
+		}));
+		splines.centripetal = curve;
+
+		curve = new THREE.CatmullRomCurve3(positions);
+		curve.type = 'chordal';
+		curve.mesh = new THREE.Line(geometry.clone(), new THREE.LineBasicMaterial({
+			color: 0x0000ff,
+			opacity: 0.35,
+			linewidth: 2
+		}));
+		splines.chordal = curve;
+
+		for (var k in splines) {
+			var spline = splines[k];
+			scene.add(spline.mesh);
+		}
+		
+		load();
+		// updateSplineOutline();
 
 	}
 
@@ -279,13 +344,22 @@
 		// scene.add(splineOutline);
 
 		var p;
-		for (var i = 0; i < 200; i++) {
-			p = splineMesh.geometry.vertices[i];
 
-			p.copy(splineCurve.getPoint(i /  (200 - 1)));
+		for (var k in splines) {
+			var spline = splines[k];
+
+			splineMesh = spline.mesh;
+
+			for (var i = 0; i < ARC_SEGMENTS; i++) {
+				p = splineMesh.geometry.vertices[i];
+				p.copy(spline.getPoint(i /  (ARC_SEGMENTS - 1)));
+			}
+
+			splineMesh.geometry.verticesNeedUpdate = true;
+			
 		}
 
-		splineMesh.geometry.verticesNeedUpdate = true;
+		
 	}
 
 	function exportSpline() {
@@ -300,14 +374,34 @@
 		prompt('copy and paste code', code);
 	}
 
-	function load() {
-		// positions = [new THREE.Vector3(-213.12552068360054, -294.1922074745087, -0.03978996232257259), new THREE.Vector3(29.99553601021495, -243.11318001675306, 280.78482599069616), new THREE.Vector3(-97.75986506175894, -64.54552418022524, 55.64806371267258), new THREE.Vector3(-314.408250336442, 235.23205516762346, -5.893017170859991), new THREE.Vector3(22.034622881439077, 162.8965831284607, -345.10495452036184), new THREE.Vector3(134.59056654199452, 382.5168668673815, -198.91479606872133), new THREE.Vector3(477.5022172612489, -4.8651203633506555, -210.47236097401574), new THREE.Vector3(449.0486673017501, 4.918562856246474, 52.560123928679985), new THREE.Vector3(280.6397761972279, -290.27337790622795, 40.210017846524124), new THREE.Vector3(163.10498799765227, -369.03871116931487, -173.83095096616034)];
+	function load(new_positions) {
+		new_positions = [new THREE.Vector3(-213.12552068360054, -294.1922074745087, -0.03978996232257259), new THREE.Vector3(29.99553601021495, -243.11318001675306, 280.78482599069616), new THREE.Vector3(-97.75986506175894, -64.54552418022524, 55.64806371267258), new THREE.Vector3(-314.408250336442, 235.23205516762346, -5.893017170859991), new THREE.Vector3(22.034622881439077, 162.8965831284607, -345.10495452036184), new THREE.Vector3(134.59056654199452, 382.5168668673815, -198.91479606872133), new THREE.Vector3(477.5022172612489, -4.8651203633506555, -210.47236097401574), new THREE.Vector3(449.0486673017501, 4.918562856246474, 52.560123928679985), new THREE.Vector3(280.6397761972279, -290.27337790622795, 40.210017846524124), new THREE.Vector3(163.10498799765227, -369.03871116931487, -173.83095096616034)];
 
-		positions = [new THREE.Vector3(289.76843686945404, 452.51481137238443, 56.10018915737797),
+		new_positions = [new THREE.Vector3(289.76843686945404, 452.51481137238443, 56.10018915737797),
 	new THREE.Vector3(-53.56300074753207, 171.49711742836848, -14.495472686253045),
 	new THREE.Vector3(-91.40118730204415, 176.4306956436485, -6.958271935582161),
 	new THREE.Vector3(-383.785318791128, 491.1365363371675, 47.869296953772746)];
-		splinePointsLength = positions.length;
+
+	// new_positions = [new THREE.Vector3(496.67234058451385, 713.7265572769854, 84.81943314428486),
+	// new THREE.Vector3(10.966847239405658, 127.77487908510103, 109.91398030899873),
+	// new THREE.Vector3(-35.32146057760889, 121.27819505763335, 100.66098380657866),
+	// new THREE.Vector3(-503.45191292733756, 625.3271986161933, 95.45294615062474)]
+
+
+		while (new_positions.length > positions.length) {
+			addPoint();
+		}
+
+		while (new_positions.length < positions.length) {
+			removePoint();
+		}
+
+		for (i=0; i < positions.length; i++) {
+			positions[i].copy(new_positions[i]);
+		}
+
+		updateSplineOutline();
+
 	}
 
 	function animate() {
@@ -320,6 +414,11 @@
 	}
 
 	function render() {
+
+		splines.spline.mesh.visible = spline.checked;
+		splines.uniform.mesh.visible = uniform.checked;
+		splines.centripetal.mesh.visible = centripetal.checked;
+		splines.chordal.mesh.visible = chordal.checked;
 		renderer.render(scene, camera);
 	}
 
