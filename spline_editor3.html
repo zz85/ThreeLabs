@@ -137,20 +137,21 @@
 
 		scene.add( transformControl );
 
+		// Hiding transform situation is a little in a mess :()
 		transformControl.addEventListener('change', function(e) {
-			console.log('change', e.target);
+			// console.log('change', e.target);
+			cancelHideTransorm();
 		});
 
 		transformControl.addEventListener('mouseDown', function(e) {
 			controls.enabled = false;
-			cancelHideTransorm();
-			// console.log('mouseDown', e);
+			cancelHideTransorm(); // *
 		});
 
 		transformControl.addEventListener('mouseUp', function(e) {
 			controls.enabled = true;
 			// console.log('mouseUp', e, controls);
-			hideTransform();
+			delayHideTransform(); // *
 		});
 
 		transformControl.addEventListener('objectChange', function(e) {
@@ -163,19 +164,39 @@
 
 		dragcontrols.on('hoveron', function(e) {
 			transformControl.attach(e.object);
-			cancelHideTransorm();
+			cancelHideTransorm(); // *
 		})
 
 		dragcontrols.on('hoveroff', function(e) {
-			if (e) hideTransform();
+			if (e) delayHideTransform();
 		})
 
-		var hiding;
-		function hideTransform() {
+
+		controls.addEventListener('start', function() {
 			cancelHideTransorm();
+		});
+
+		// controls.addEventListener('change', function() {
+		// 	delayHideTransform();
+		// });
+
+
+		controls.addEventListener('end', function() {
+			delayHideTransform(); // *
+		});
+
+
+
+		var hiding;
+		function delayHideTransform() {
+			cancelHideTransorm();
+			hideTransform();
+		}
+
+		function hideTransform() {
 			hiding = setTimeout(function() {
 				transformControl.detach(transformControl.object);
-			}, 1500);
+			}, 2500)
 		}
 
 		function cancelHideTransorm() {
