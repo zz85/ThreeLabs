@@ -32,40 +32,18 @@
 		}
 		return str;
 	}
-	var createLineGeometry = function (points) {
-		var geometry = new THREE.Geometry();
-		for (var i = 0; i < points.length; i++) {
-			geometry.vertices.push(points[i]);
-		}
-		return geometry;
-	};
+
 	var container, stats;
 	var camera, scene, renderer;
-	var splineObjects = [],
+	var splineHelperObjects = [],
 		splineOutline;
 	var splineCurve, splinePointsLength = 4;
 	var positions = [];
 	var options;
+	
 	var geometry = new THREE.BoxGeometry(20, 20, 20);
+	var splineMesh;
 
-	function addSplineObject(position) {
-		var object = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({
-			color: Math.random() * 0xffffff
-		}));
-		object.material.ambient = object.material.color;
-		if (position) {
-			object.position = position;
-		} else {
-			object.position.x = Math.random() * 1000 - 500;
-			object.position.y = Math.random() * 600
-			object.position.z = Math.random() * 800 - 400;
-		}
-		object.castShadow = true;
-		object.receiveShadow = true;
-		scene.add(object);
-		splineObjects.push(object);
-		return object;
-	}
 	init();
 	animate();
 
@@ -116,10 +94,10 @@
 		}
 		positions = [];
 		for (i = 0; i < splinePointsLength; i++) {
-			positions.push(splineObjects[i].position);
+			positions.push(splineHelperObjects[i].position);
 		}
 		splineCurve = new THREE.SplineCurve3(positions);
-		updateSplineOutline();
+
 		renderer = new THREE.WebGLRenderer({
 			antialias: true
 		});
@@ -139,7 +117,7 @@
 		options.style.top = '30px';
 		options.style.width = '100%';
 		options.style.textAlign = 'center';
-		options.innerHTML = 'Points: <input type="button" onclick="points(1);" value="+" /><input type="button" onclick="points(-1);" value="-" /><br /><input type="button" onclick="exportSpline();" value="Export" />';
+		options.innerHTML = 'Points: <input type="button" onclick="addPoint();" value="+" /><input type="button" onclick="removePoint();" value="-" /><br /><input type="button" onclick="exportSpline();" value="Export" />';
 		container.appendChild(info);
 		container.appendChild(options);
 		stats = new Stats();
@@ -160,17 +138,19 @@
 		scene.add( transformControl );
 
 		transformControl.addEventListener('change', function(e) {
-			// console.log('change', e.target);
+			console.log('change', e.target);
 		});
 
 		transformControl.addEventListener('mouseDown', function(e) {
 			controls.enabled = false;
+			cancelHideTransorm();
 			// console.log('mouseDown', e);
 		});
 
 		transformControl.addEventListener('mouseUp', function(e) {
 			controls.enabled = true;
 			// console.log('mouseUp', e, controls);
+			hideTransform();
 		});
 
 		transformControl.addEventListener('objectChange', function(e) {
@@ -179,16 +159,28 @@
 
 		});
 
-		var dragcontrols = new THREE.DragControls(camera, splineObjects, renderer.domElement); // 
+		var dragcontrols = new THREE.DragControls(camera, splineHelperObjects, renderer.domElement); // 
 
 		dragcontrols.on('hoveron', function(e) {
 			transformControl.attach(e.object);
+			cancelHideTransorm();
 		})
 
 		dragcontrols.on('hoveroff', function(e) {
-			// console.log(e);
-			// transformControl.detach(e.object);
+			if (e) hideTransform();
 		})
+
+		var hiding;
+		function hideTransform() {
+			cancelHideTransorm();
+			hiding = setTimeout(function() {
+				transformControl.detach(transformControl.object);
+			}, 1500);
+		}
+
+		function cancelHideTransorm() {
+			if (hiding) clearTimeout(hiding);
+		}
 
 		// dragcontrols.on('dragstart', function(e) {
 		// 	controls.enabled = false;
@@ -200,47 +192,86 @@
 		// });
 
 
+		splineMesh = new THREE.Line(new THREE.Geometry(), new THREE.LineBasicMaterial({
+			color: 0x000000,
+			opacity: 0.35,
+			width: 2
+		}));
+
+		for (var i = 0; i < 200; i++) {
+			splineMesh.geometry.vertices.push(new THREE.Vector3());
+		}
+
+		scene.add(splineMesh);
+		updateSplineOutline();
+
 	}
 
-	function points(offset) {
-		splinePointsLength += offset;
-		if (splinePointsLength < 4) {
-			splinePointsLength = 4;
+	function addSplineObject(position) {
+		var object = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({
+			color: Math.random() * 0xffffff
+		}));
+		object.material.ambient = object.material.color;
+		if (position) {
+			object.position.copy(position);
+		} else {
+			object.position.x = Math.random() * 1000 - 500;
+			object.position.y = Math.random() * 600
+			object.position.z = Math.random() * 800 - 400;
+		}
+		object.castShadow = true;
+		object.receiveShadow = true;
+		scene.add(object);
+		splineHelperObjects.push(object);
+		return object;
+	}
+
+	function addPoint() {
+		splinePointsLength ++;
+		positions.push(addSplineObject()
+					.position);
+
+		updateSplineOutline();
+	}
+
+	function removePoint() {
+		if (splinePointsLength <= 4) {
 			return;
 		}
-		if (offset > 0) {
-			while (offset--) {
-				positions.push(addSplineObject()
-					.position)
-			}
-		} else {
-			offset = -offset;
-			while (offset--) {
-				positions.pop();
-				scene.remove(splineObjects.pop());
-			}
-		}
+		splinePointsLength --;
+		positions.pop();
+		scene.remove(splineHelperObjects.pop());
+		
 		updateSplineOutline();
 	}
 
 	function updateSplineOutline() {
-		if (splineOutline) scene.remove(splineOutline);
-		splineCurve.updateArcLengths();
-		var arcLen = splineCurve.getLength();
-		arcLen = Math.floor(arcLen / 20);
-		var spacedPoints = createLineGeometry(splineCurve.getPoints(arcLen));
-		splineOutline = new THREE.Line(spacedPoints, new THREE.LineBasicMaterial({
-			color: 0x000000,
-			opacity: 0.35
-		}));
-		scene.add(splineOutline);
+		// if (splineOutline) scene.remove(splineOutline);
+		// splineCurve.updateArcLengths();
+		// var arcLen = splineCurve.getLength();
+		// arcLen = Math.floor(arcLen / 20);
+		// var spacedPoints = createLineGeometry(splineCurve.getPoints(arcLen));
+		// splineOutline = new THREE.Line(spacedPoints, new THREE.LineBasicMaterial({
+		// 	color: 0x000000,
+		// 	opacity: 0.35
+		// }));
+		// scene.add(splineOutline);
+
+		var p;
+		for (var i = 0; i < 200; i++) {
+			p = splineMesh.geometry.vertices[i];
+
+			p.copy(splineCurve.getPoint(i /  (200 - 1)));
+		}
+
+		splineMesh.geometry.verticesNeedUpdate = true;
 	}
 
 	function exportSpline() {
 		var p;
 		var strplace = [];
 		for (i = 0; i < splinePointsLength; i++) {
-			p = splineObjects[i].position;
+			p = splineHelperObjects[i].position;
 			strplace.push('new THREE.Vector3({0}, {1}, {2})'.format(p.x, p.y, p.z))
 		}
 		console.log(strplace.join(',\n'));
@@ -249,7 +280,12 @@
 	}
 
 	function load() {
-		positions = [new THREE.Vector3(-213.12552068360054, -294.1922074745087, -0.03978996232257259), new THREE.Vector3(29.99553601021495, -243.11318001675306, 280.78482599069616), new THREE.Vector3(-97.75986506175894, -64.54552418022524, 55.64806371267258), new THREE.Vector3(-314.408250336442, 235.23205516762346, -5.893017170859991), new THREE.Vector3(22.034622881439077, 162.8965831284607, -345.10495452036184), new THREE.Vector3(134.59056654199452, 382.5168668673815, -198.91479606872133), new THREE.Vector3(477.5022172612489, -4.8651203633506555, -210.47236097401574), new THREE.Vector3(449.0486673017501, 4.918562856246474, 52.560123928679985), new THREE.Vector3(280.6397761972279, -290.27337790622795, 40.210017846524124), new THREE.Vector3(163.10498799765227, -369.03871116931487, -173.83095096616034)];
+		// positions = [new THREE.Vector3(-213.12552068360054, -294.1922074745087, -0.03978996232257259), new THREE.Vector3(29.99553601021495, -243.11318001675306, 280.78482599069616), new THREE.Vector3(-97.75986506175894, -64.54552418022524, 55.64806371267258), new THREE.Vector3(-314.408250336442, 235.23205516762346, -5.893017170859991), new THREE.Vector3(22.034622881439077, 162.8965831284607, -345.10495452036184), new THREE.Vector3(134.59056654199452, 382.5168668673815, -198.91479606872133), new THREE.Vector3(477.5022172612489, -4.8651203633506555, -210.47236097401574), new THREE.Vector3(449.0486673017501, 4.918562856246474, 52.560123928679985), new THREE.Vector3(280.6397761972279, -290.27337790622795, 40.210017846524124), new THREE.Vector3(163.10498799765227, -369.03871116931487, -173.83095096616034)];
+
+		positions = [new THREE.Vector3(289.76843686945404, 452.51481137238443, 56.10018915737797),
+	new THREE.Vector3(-53.56300074753207, 171.49711742836848, -14.495472686253045),
+	new THREE.Vector3(-91.40118730204415, 176.4306956436485, -6.958271935582161),
+	new THREE.Vector3(-383.785318791128, 491.1365363371675, 47.869296953772746)];
 		splinePointsLength = positions.length;
 	}
 
